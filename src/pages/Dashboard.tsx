@@ -12,6 +12,23 @@ import { Progress } from "@/components/ui/progress";
 import BookList from "@/components/BookList";
 import { scanBooks, getBooks } from "@/lib/api";
 
+// Importing necessary interfaces
+// This should match the Book interface in BookList.tsx
+interface Book {
+  id: string;
+  name: string;
+  grade?: number;
+  subject?: string;
+  semester?: number;
+  total_pages?: number;
+  processed_pages?: number;
+  status: string;
+  questions_count?: number;
+  file_path: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const Dashboard = () => {
   const [isScanning, setIsScanning] = useState(false);
 

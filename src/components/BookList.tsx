@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -19,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { processBook, pauseProcessing } from "@/lib/api";
 
-// Define Book interface
+// Define Book interface with string status type to match Supabase response
 interface Book {
   id: string;
   name: string;
@@ -28,8 +27,11 @@ interface Book {
   semester?: number;
   total_pages?: number;
   processed_pages?: number;
-  status: "idle" | "processing" | "completed" | "error";
+  status: string; // Changed from literal union to string to match Supabase response
   questions_count?: number;
+  file_path: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface BookListProps {
