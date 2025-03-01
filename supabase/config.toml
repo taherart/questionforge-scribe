@@ -39,8 +39,5 @@ refresh_token_reuse_interval = 10
 [functions]
 enabled = true
 
-[functions.serve]
-enabled = true
-
 [realtime]
 enabled = true
