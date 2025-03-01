@@ -56,7 +56,7 @@ serve(async (req) => {
         console.log('Warning: Book does not have total_pages set. Metadata should be extracted first.');
       }
     } else if (action === 'pause') {
-      updatedStatus = 'idle';
+      updatedStatus = 'paused'; // Changed from 'idle' to 'paused' to match the valid status values
       message = 'Book processing paused';
     } else if (action === 'cancel') {
       updatedStatus = 'canceled';

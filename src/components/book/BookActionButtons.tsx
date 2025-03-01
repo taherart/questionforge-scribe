@@ -4,6 +4,16 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Define valid statuses to match database constraint
+const VALID_STATUSES = {
+  IDLE: 'idle',
+  PAUSED: 'paused',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  ERROR: 'error',
+  CANCELED: 'canceled'
+};
+
 interface BookActionButtonsProps {
   bookId: string;
   status: string;
@@ -20,8 +30,8 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
   onCancel
 }) => {
   // Check if status allows for processing actions based on valid statuses
-  const canProcess = ["idle", "paused"].includes(status);
-  const isProcessing = status === "processing";
+  const canProcess = [VALID_STATUSES.IDLE, VALID_STATUSES.PAUSED].includes(status);
+  const isProcessing = status === VALID_STATUSES.PROCESSING;
   const canCancel = isProcessing;
 
   return (

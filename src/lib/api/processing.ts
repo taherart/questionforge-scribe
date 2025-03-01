@@ -2,6 +2,16 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// Define valid book statuses to ensure we're only using allowed values
+const VALID_BOOK_STATUSES = {
+  IDLE: 'idle',
+  PAUSED: 'paused',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  ERROR: 'error',
+  CANCELED: 'canceled'
+};
+
 export const processBook = async (bookId: string) => {
   console.log(`Processing book ${bookId}...`);
   
@@ -19,7 +29,7 @@ export const processBook = async (bookId: string) => {
     }
     
     // Check if book is in a valid state to start processing
-    if (bookData.status !== 'idle' && bookData.status !== 'paused') {
+    if (bookData.status !== VALID_BOOK_STATUSES.IDLE && bookData.status !== VALID_BOOK_STATUSES.PAUSED) {
       return {
         success: false,
         message: `Cannot start processing a book with status: ${bookData.status}`,
@@ -40,7 +50,7 @@ export const processBook = async (bookId: string) => {
     const { error: updateError } = await supabase
       .from('books')
       .update({
-        status: 'processing',
+        status: VALID_BOOK_STATUSES.PROCESSING,
         updated_at: new Date().toISOString()
       })
       .eq('id', bookId);
@@ -149,7 +159,7 @@ export const pauseProcessing = async (bookId: string) => {
     }
     
     // Only attempt to change status if the book is currently in 'processing' state
-    if (currentBook.status !== 'processing') {
+    if (currentBook.status !== VALID_BOOK_STATUSES.PROCESSING) {
       console.log(`Book ${bookId} is not in processing state, current state: ${currentBook.status}`);
       // Return early without trying to update status
       return {
@@ -162,7 +172,7 @@ export const pauseProcessing = async (bookId: string) => {
     const { error: updateError } = await supabase
       .from('books')
       .update({
-        status: 'paused',
+        status: VALID_BOOK_STATUSES.PAUSED,  // Make sure we use the valid status value
         updated_at: new Date().toISOString()
       })
       .eq('id', bookId);
@@ -226,7 +236,7 @@ export const cancelProcessing = async (bookId: string) => {
     }
     
     // Only attempt to change status if the book is currently in 'processing' state
-    if (currentBook.status !== 'processing') {
+    if (currentBook.status !== VALID_BOOK_STATUSES.PROCESSING) {
       console.log(`Book ${bookId} is not in processing state, current state: ${currentBook.status}`);
       // Return early without trying to update status
       return {
@@ -239,7 +249,7 @@ export const cancelProcessing = async (bookId: string) => {
     const { error: updateError } = await supabase
       .from('books')
       .update({
-        status: 'canceled',
+        status: VALID_BOOK_STATUSES.CANCELED,  // Make sure we use the valid status value
         updated_at: new Date().toISOString()
       })
       .eq('id', bookId);
