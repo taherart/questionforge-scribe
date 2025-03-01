@@ -17,11 +17,14 @@ serve(async (req) => {
     const { bookId, filePath } = await req.json();
     
     if (!bookId || !filePath) {
+      console.error('Missing bookId or filePath', { bookId, filePath });
       return new Response(
         JSON.stringify({ error: 'Book ID and file path are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+
+    console.log(`Processing metadata extraction for book ${bookId}, file: ${filePath}`);
 
     // Create a Supabase client with the Admin key
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -64,6 +67,7 @@ serve(async (req) => {
     // Simulate page count - in a real implementation, use a PDF parser
     // For now, we'll use a random number between 30-100 pages as a placeholder
     const totalPages = Math.floor(Math.random() * 70) + 30;
+    console.log(`Extracted ${totalPages} pages for book ${bookId}`);
     
     // Update the book with the metadata
     const { data: updatedBook, error: updateError } = await supabase
@@ -84,6 +88,7 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Successfully updated book metadata for ${bookId}`);
     return new Response(
       JSON.stringify({ 
         message: 'Book metadata extracted successfully',
@@ -93,7 +98,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in metadata extraction:', error);
     return new Response(
       JSON.stringify({ error: 'An unexpected error occurred', details: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
