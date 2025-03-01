@@ -37,6 +37,8 @@ enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 
 [functions]
+enabled = false
+
 [functions.serve]
 enabled = true
 
