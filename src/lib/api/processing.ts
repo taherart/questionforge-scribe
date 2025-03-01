@@ -127,7 +127,29 @@ export const pauseProcessing = async (bookId: string) => {
   console.log(`Pausing processing for book ${bookId}...`);
   
   try {
-    // First update the book status
+    // First check the current status
+    const { data: currentBook, error: checkError } = await supabase
+      .from('books')
+      .select('status')
+      .eq('id', bookId)
+      .single();
+      
+    if (checkError) {
+      console.error("Error checking book status:", checkError);
+      throw checkError;
+    }
+    
+    // Only attempt to change status if the book is currently in 'processing' state
+    if (currentBook.status !== 'processing') {
+      console.log(`Book ${bookId} is not in processing state, current state: ${currentBook.status}`);
+      // Return early without trying to update status
+      return {
+        success: false,
+        message: `Cannot pause book that is not processing (current status: ${currentBook.status})`,
+      };
+    }
+    
+    // Update the book status to paused
     const { error: updateError } = await supabase
       .from('books')
       .update({
@@ -182,7 +204,29 @@ export const cancelProcessing = async (bookId: string) => {
   console.log(`Canceling processing for book ${bookId}...`);
   
   try {
-    // First update the book status
+    // First check the current status
+    const { data: currentBook, error: checkError } = await supabase
+      .from('books')
+      .select('status')
+      .eq('id', bookId)
+      .single();
+      
+    if (checkError) {
+      console.error("Error checking book status:", checkError);
+      throw checkError;
+    }
+    
+    // Only attempt to change status if the book is currently in 'processing' state
+    if (currentBook.status !== 'processing') {
+      console.log(`Book ${bookId} is not in processing state, current state: ${currentBook.status}`);
+      // Return early without trying to update status
+      return {
+        success: false,
+        message: `Cannot cancel book that is not processing (current status: ${currentBook.status})`,
+      };
+    }
+    
+    // Update the book status to canceled
     const { error: updateError } = await supabase
       .from('books')
       .update({

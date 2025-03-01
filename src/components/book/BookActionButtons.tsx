@@ -19,6 +19,10 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
   onProcess,
   onCancel
 }) => {
+  // Check if status allows for processing actions
+  const canProcess = status !== "completed" && status !== "canceled";
+  const canCancel = status === "processing";
+
   return (
     <div className="flex items-center justify-end space-x-2">
       <TooltipProvider>
@@ -29,7 +33,7 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
               size="icon"
               className="h-8 w-8"
               onClick={() => onProcess(bookId, status)}
-              disabled={isLoading || status === "completed" || status === "canceled"}
+              disabled={isLoading || !canProcess}
             >
               {isLoading ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -54,7 +58,7 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
               size="icon"
               className="h-8 w-8"
               onClick={() => onCancel(bookId)}
-              disabled={isLoading || status !== "processing"}
+              disabled={isLoading || !canCancel}
             >
               <StopCircle size={14} />
             </Button>
