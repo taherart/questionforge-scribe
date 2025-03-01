@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -13,22 +12,22 @@ import { Progress } from "@/components/ui/progress";
 import BookList from "@/components/BookList";
 import ProcessLogs from "@/components/ProcessLogs";
 import { scanBooks, getBooks } from "@/lib/api";
+import { Book as BookType } from "@/types/book";
 
-// Importing necessary interfaces
-interface Book {
-  id: string;
-  name: string;
-  grade?: number;
-  subject?: string;
-  semester?: number;
-  total_pages?: number;
-  processed_pages?: number;
-  status: string;
-  questions_count?: number;
-  file_path: string;
-  created_at: string;
-  updated_at: string;
-}
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
 
 const Dashboard = () => {
   const [isScanning, setIsScanning] = useState(false);
@@ -87,23 +86,8 @@ const Dashboard = () => {
     }
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  };
-
   // Ensure books array is properly initialized
-  const safeBooks = Array.isArray(books) ? books : [];
+  const safeBooks = Array.isArray(books) ? books as BookType[] : [];
 
   return (
     <motion.div

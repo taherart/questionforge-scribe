@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Book } from "@/types/book";
 
 export const scanBooks = async () => {
   console.log("Scanning books from Supabase storage (metadata only)...");
@@ -80,7 +80,7 @@ export const scanBooks = async () => {
   }
 };
 
-export const getBooks = async () => {
+export const getBooks = async (): Promise<Book[]> => {
   try {
     const { data, error } = await supabase
       .from('books')
@@ -100,7 +100,7 @@ export const getBooks = async () => {
   }
 };
 
-export const getBookById = async (bookId: string) => {
+export const getBookById = async (bookId: string): Promise<Book | null> => {
   try {
     const { data, error } = await supabase
       .from('books')
