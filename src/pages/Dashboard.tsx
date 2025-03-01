@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -11,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import BookList from "@/components/BookList";
-import { scanBooks } from "@/lib/api";
+import { scanBooks, getBooks } from "@/lib/api";
 
 const Dashboard = () => {
   const [isScanning, setIsScanning] = useState(false);
@@ -22,11 +21,7 @@ const Dashboard = () => {
     refetch 
   } = useQuery({
     queryKey: ["books"],
-    queryFn: async () => {
-      // Placeholder for API call to get books
-      // In a real implementation, this would fetch from Supabase
-      return [];
-    }
+    queryFn: getBooks
   });
 
   const handleScanBooks = async () => {
@@ -34,9 +29,14 @@ const Dashboard = () => {
     toast.info("Scanning books...");
     
     try {
-      await scanBooks();
+      const result = await scanBooks();
       await refetch();
-      toast.success("Books scanned successfully!");
+      
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
     } catch (error) {
       console.error("Error scanning books:", error);
       toast.error("Failed to scan books. Please try again.");
@@ -113,7 +113,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                "0"
+                books.reduce((sum, book) => sum + (book.questions_count || 0), 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -131,7 +131,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                "0"
+                books.filter(book => book.status === 'processing').length
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -149,7 +149,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                "0"
+                books.filter(book => book.status === 'completed').length
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -190,22 +190,13 @@ const Dashboard = () => {
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : books.length > 0 ? (
-              <BookList books={books} />
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <BookOpenCheck className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">No books found</h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                  Upload books to the 'books' folder in Supabase storage to start 
-                  generating questions.
-                </p>
-              </div>
+              <BookList books={books} />
             )}
           </CardContent>
           <CardFooter className="border-t bg-muted/30 px-6 py-3">
             <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
-              <span>Last scan: Never</span>
+              <span>Last scan: {new Date().toLocaleString()}</span>
               <Button variant="ghost" size="sm" className="flex items-center gap-1">
                 <FilePlus className="h-4 w-4" />
                 <span className="hidden sm:inline">Upload</span>

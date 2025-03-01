@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { processBook, pauseProcessing } from "@/lib/api";
 
 // Define Book interface
 interface Book {
@@ -25,10 +26,10 @@ interface Book {
   grade?: number;
   subject?: string;
   semester?: number;
-  totalPages?: number;
-  processedPages?: number;
+  total_pages?: number;
+  processed_pages?: number;
   status: "idle" | "processing" | "completed" | "error";
-  questionsCount?: number;
+  questions_count?: number;
 }
 
 interface BookListProps {
@@ -37,18 +38,38 @@ interface BookListProps {
 
 const BookList: React.FC<BookListProps> = ({ books }) => {
   const [processingBooks, setProcessingBooks] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
 
-  const handleProcess = (bookId: string, isProcessing: boolean) => {
-    if (isProcessing) {
-      toast.info("Pausing question generation...");
-      // In a real implementation, this would call an API to pause processing
-      setProcessingBooks(prev => ({ ...prev, [bookId]: false }));
-      toast.success("Question generation paused!");
-    } else {
-      toast.info("Starting question generation...");
-      // In a real implementation, this would call an API to start processing
-      setProcessingBooks(prev => ({ ...prev, [bookId]: true }));
-      toast.success("Question generation started!");
+  const handleProcess = async (bookId: string, currentStatus: Book["status"]) => {
+    setIsLoading(prev => ({ ...prev, [bookId]: true }));
+    
+    try {
+      if (currentStatus === "processing") {
+        toast.info("Pausing question generation...");
+        const result = await pauseProcessing(bookId);
+        
+        if (result.success) {
+          setProcessingBooks(prev => ({ ...prev, [bookId]: false }));
+          toast.success("Question generation paused!");
+        } else {
+          toast.error(result.message || "Failed to pause processing");
+        }
+      } else {
+        toast.info("Starting question generation...");
+        const result = await processBook(bookId);
+        
+        if (result.success) {
+          setProcessingBooks(prev => ({ ...prev, [bookId]: true }));
+          toast.success("Question generation started!");
+        } else {
+          toast.error(result.message || "Failed to start processing");
+        }
+      }
+    } catch (error) {
+      console.error("Error processing book:", error);
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(prev => ({ ...prev, [bookId]: false }));
     }
   };
 
@@ -92,125 +113,93 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* If there are no books yet, we'll display placeholder items */}
-          {books.length === 0 ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={5}>
-                  <div className="h-12 bg-muted/50 rounded animate-pulse"></div>
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            // Mock data for demonstration
-            [
-              {
-                id: "1",
-                name: "Math_Grade5_S1.pdf",
-                grade: 5,
-                subject: "Mathematics",
-                semester: 1,
-                totalPages: 120,
-                processedPages: 0,
-                status: "idle" as const,
-                questionsCount: 0
-              },
-              {
-                id: "2",
-                name: "Science_Grade7_S2.pdf",
-                grade: 7,
-                subject: "Science",
-                semester: 2,
-                totalPages: 150,
-                processedPages: 0,
-                status: "idle" as const,
-                questionsCount: 0
-              }
-            ].map((book) => (
-              <motion.tr
-                key={book.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="group"
-              >
-                <TableCell className="font-medium">
-                  <Link to={`/book/${book.id}`} className="hover:text-primary flex items-center gap-2 transition-colors">
-                    <Book size={16} className="text-muted-foreground" />
-                    <span className="truncate max-w-[150px] md:max-w-[200px]">{book.name}</span>
-                  </Link>
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  {book.grade && book.subject ? (
-                    <div className="flex flex-col">
-                      <span>Grade {book.grade}</span>
-                      <span className="text-xs text-muted-foreground">{book.subject}</span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">Unknown</span>
-                  )}
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span>{book.processedPages || 0} / {book.totalPages || '?'} pages</span>
-                      <span>{Math.round(((book.processedPages || 0) / (book.totalPages || 1)) * 100)}%</span>
-                    </div>
-                    <Progress value={((book.processedPages || 0) / (book.totalPages || 1)) * 100} />
+          {books.map((book) => (
+            <motion.tr
+              key={book.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="group"
+            >
+              <TableCell className="font-medium">
+                <Link to={`/book/${book.id}`} className="hover:text-primary flex items-center gap-2 transition-colors">
+                  <Book size={16} className="text-muted-foreground" />
+                  <span className="truncate max-w-[150px] md:max-w-[200px]">{book.name}</span>
+                </Link>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                {book.grade && book.subject ? (
+                  <div className="flex flex-col">
+                    <span>Grade {book.grade}</span>
+                    <span className="text-xs text-muted-foreground">{book.subject}</span>
                   </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  {getStatusBadge(book.status)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end space-x-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleProcess(book.id, processingBooks[book.id] || false)}
-                          >
-                            {processingBooks[book.id] ? (
-                              <Pause size={14} />
-                            ) : (
-                              <Play size={14} />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {processingBooks[book.id] ? 'Pause processing' : 'Start processing'}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            asChild
-                          >
-                            <Link to={`/book/${book.id}`}>
-                              <ArrowRight size={14} />
-                            </Link>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          View details
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                ) : (
+                  <span className="text-muted-foreground">Unknown</span>
+                )}
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span>{book.processed_pages || 0} / {book.total_pages || '?'} pages</span>
+                    <span>{book.total_pages ? Math.round(((book.processed_pages || 0) / book.total_pages) * 100) : 0}%</span>
                   </div>
-                </TableCell>
-              </motion.tr>
-            ))
-          )}
+                  <Progress value={book.total_pages ? ((book.processed_pages || 0) / book.total_pages) * 100 : 0} />
+                </div>
+              </TableCell>
+              <TableCell className="text-right">
+                {getStatusBadge(book.status)}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end space-x-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleProcess(book.id, book.status)}
+                          disabled={isLoading[book.id]}
+                        >
+                          {isLoading[book.id] ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : book.status === "processing" ? (
+                            <Pause size={14} />
+                          ) : (
+                            <Play size={14} />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {book.status === "processing" ? 'Pause processing' : 'Start processing'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          asChild
+                        >
+                          <Link to={`/book/${book.id}`}>
+                            <ArrowRight size={14} />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        View details
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </TableCell>
+            </motion.tr>
+          ))}
         </TableBody>
       </Table>
     </div>

@@ -9,7 +9,89 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      books: {
+        Row: {
+          created_at: string
+          file_path: string
+          grade: number | null
+          id: string
+          name: string
+          processed_pages: number | null
+          questions_count: number | null
+          semester: number | null
+          status: string
+          subject: string | null
+          total_pages: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          grade?: number | null
+          id?: string
+          name: string
+          processed_pages?: number | null
+          questions_count?: number | null
+          semester?: number | null
+          status?: string
+          subject?: string | null
+          total_pages?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          grade?: number | null
+          id?: string
+          name?: string
+          processed_pages?: number | null
+          questions_count?: number | null
+          semester?: number | null
+          status?: string
+          subject?: string | null
+          total_pages?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      questions: {
+        Row: {
+          answer: string
+          book_id: string
+          created_at: string
+          id: string
+          options: Json
+          page_number: number | null
+          question: string
+        }
+        Insert: {
+          answer: string
+          book_id: string
+          created_at?: string
+          id?: string
+          options: Json
+          page_number?: number | null
+          question: string
+        }
+        Update: {
+          answer?: string
+          book_id?: string
+          created_at?: string
+          id?: string
+          options?: Json
+          page_number?: number | null
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

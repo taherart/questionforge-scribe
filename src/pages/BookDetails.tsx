@@ -1,9 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ArrowLeft, Book, FileSpreadsheet, Download, Play, Pause, Settings, FileQuestion, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,51 +12,124 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { getBookById, processBook, pauseProcessing, exportCSV } from "@/lib/api";
 
 const BookDetails = () => {
   const { id } = useParams<{ id: string }>();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Mock data - in real app, fetch from API
-  const book = {
-    id: id,
-    name: "Mathematics_Grade5_S1.pdf",
-    grade: 5,
-    subject: "Mathematics",
-    semester: 1,
-    totalPages: 120,
-    processedPages: 0,
-    status: "idle",
-    questionsCount: 0,
-    metadata: {
-      fileSize: "24 MB",
-      language: "English & Arabic",
-      uploadedAt: "2023-05-15",
-      lastProcessed: "-"
-    }
-  };
+  const { 
+    data: book, 
+    isLoading,
+    refetch
+  } = useQuery({
+    queryKey: ["book", id],
+    queryFn: () => id ? getBookById(id) : null,
+    enabled: !!id
+  });
 
-  const handleProcess = () => {
+  useEffect(() => {
+    if (book?.status === "processing") {
+      setIsProcessing(true);
+    } else {
+      setIsProcessing(false);
+    }
+  }, [book]);
+
+  const handleProcess = async () => {
+    if (!id) return;
+    
     if (isProcessing) {
       toast.info("Pausing question generation...");
-      // API call would go here
-      setIsProcessing(false);
-      toast.success("Question generation paused!");
+      try {
+        const result = await pauseProcessing(id);
+        if (result.success) {
+          setIsProcessing(false);
+          toast.success("Question generation paused!");
+          refetch();
+        } else {
+          toast.error(result.message || "Failed to pause processing");
+        }
+      } catch (error) {
+        console.error("Error pausing processing:", error);
+        toast.error("An error occurred. Please try again.");
+      }
     } else {
       toast.info("Starting question generation...");
-      // API call would go here
-      setIsProcessing(true);
-      toast.success("Question generation started!");
+      try {
+        const result = await processBook(id);
+        if (result.success) {
+          setIsProcessing(true);
+          toast.success("Question generation started!");
+          refetch();
+        } else {
+          toast.error(result.message || "Failed to start processing");
+        }
+      } catch (error) {
+        console.error("Error starting processing:", error);
+        toast.error("An error occurred. Please try again.");
+      }
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    if (!id) return;
+    
+    setIsExporting(true);
     toast.info("Exporting CSV...");
-    // In a real implementation, this would download the CSV
-    setTimeout(() => {
-      toast.success("CSV exported successfully!");
-    }, 1500);
+    
+    try {
+      const result = await exportCSV(id);
+      if (result.success) {
+        toast.success("CSV exported successfully!");
+        // In a real app, this would trigger a download
+      } else {
+        toast.error(result.message || "Failed to export CSV");
+      }
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      toast.error("An error occurred during export. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[70vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!book) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <FileQuestion className="h-12 w-12 text-muted-foreground/50 mb-4" />
+        <h3 className="text-lg font-medium">Book not found</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md">
+          The book you're looking for doesn't exist or has been deleted.
+        </p>
+        <Button variant="outline" className="mt-6" asChild>
+          <Link to="/">
+            <ArrowLeft size={16} className="mr-2" />
+            Back to Dashboard
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  // Prepare book metadata for display
+  const metadata = {
+    fileSize: "Unknown",
+    language: "Unknown",
+    uploadedAt: new Date(book.created_at).toLocaleDateString(),
+    lastProcessed: book.updated_at !== book.created_at 
+      ? new Date(book.updated_at).toLocaleString() 
+      : '-'
   };
 
   return (
@@ -80,7 +154,9 @@ const BookDetails = () => {
             <span className="truncate">{book.name}</span>
           </h1>
           <p className="text-muted-foreground">
-            Grade {book.grade} • {book.subject} • Semester {book.semester}
+            {book.grade ? `Grade ${book.grade} • ` : ''}
+            {book.subject ? `${book.subject} • ` : ''}
+            {book.semester ? `Semester ${book.semester}` : ''}
           </p>
         </div>
         
@@ -88,6 +164,7 @@ const BookDetails = () => {
           <Button 
             onClick={handleProcess} 
             className="group"
+            disabled={isLoading}
           >
             {isProcessing ? (
               <>
@@ -105,9 +182,13 @@ const BookDetails = () => {
           <Button 
             variant="outline" 
             onClick={handleExportCSV}
-            disabled={book.questionsCount === 0}
+            disabled={book.questions_count === 0 || isExporting}
           >
-            <Download className="mr-2 h-4 w-4" />
+            {isExporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
             Export CSV
           </Button>
         </div>
@@ -119,7 +200,7 @@ const BookDetails = () => {
           <TabsTrigger value="questions">
             Questions
             <Badge variant="secondary" className="ml-2">
-              {book.questionsCount}
+              {book.questions_count || 0}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -132,7 +213,7 @@ const BookDetails = () => {
                 <CardTitle className="text-sm font-medium">Total Pages</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{book.totalPages}</div>
+                <div className="text-2xl font-bold">{book.total_pages || "Unknown"}</div>
               </CardContent>
             </Card>
             
@@ -142,7 +223,7 @@ const BookDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {book.processedPages} <span className="text-sm text-muted-foreground">/ {book.totalPages}</span>
+                  {book.processed_pages || 0} <span className="text-sm text-muted-foreground">/ {book.total_pages || 'Unknown'}</span>
                 </div>
               </CardContent>
             </Card>
@@ -152,7 +233,7 @@ const BookDetails = () => {
                 <CardTitle className="text-sm font-medium">Questions Created</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{book.questionsCount}</div>
+                <div className="text-2xl font-bold">{book.questions_count || 0}</div>
               </CardContent>
             </Card>
             
@@ -162,8 +243,8 @@ const BookDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {book.processedPages > 0 
-                    ? (book.questionsCount / book.processedPages).toFixed(1) 
+                  {book.processed_pages > 0 
+                    ? ((book.questions_count || 0) / book.processed_pages).toFixed(1) 
                     : "0"}
                 </div>
               </CardContent>
@@ -183,11 +264,11 @@ const BookDetails = () => {
                   <div className="flex justify-between text-sm">
                     <span>Overall progress</span>
                     <span className="font-medium">
-                      {Math.round(((book.processedPages || 0) / (book.totalPages || 1)) * 100)}%
+                      {book.total_pages ? Math.round(((book.processed_pages || 0) / book.total_pages) * 100) : 0}%
                     </span>
                   </div>
                   <Progress 
-                    value={((book.processedPages || 0) / (book.totalPages || 1)) * 100} 
+                    value={book.total_pages ? ((book.processed_pages || 0) / book.total_pages) * 100 : 0} 
                     className="h-2"
                   />
                 </div>
@@ -197,7 +278,7 @@ const BookDetails = () => {
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Current page</p>
                       <p className="font-medium">
-                        {book.processedPages > 0 ? book.processedPages : 'Not started'}
+                        {book.processed_pages > 0 ? book.processed_pages : 'Not started'}
                       </p>
                     </div>
                     
@@ -213,14 +294,16 @@ const BookDetails = () => {
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Questions generated</p>
-                      <p className="font-medium">{book.questionsCount}</p>
+                      <p className="font-medium">{book.questions_count || 0}</p>
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Estimated time remaining</p>
                       <p className="font-medium">
                         {isProcessing 
-                          ? '~45 minutes' 
+                          ? book.total_pages && book.processed_pages
+                            ? `~${Math.round((book.total_pages - book.processed_pages) * 2)} minutes` 
+                            : 'Calculating...'
                           : 'Paused'}
                       </p>
                     </div>
@@ -260,32 +343,32 @@ const BookDetails = () => {
                   <div className="grid grid-cols-2 gap-y-3">
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Grade</p>
-                      <p className="font-medium">{book.grade}</p>
+                      <p className="font-medium">{book.grade || 'Not specified'}</p>
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Subject</p>
-                      <p className="font-medium">{book.subject}</p>
+                      <p className="font-medium">{book.subject || 'Not specified'}</p>
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Semester</p>
-                      <p className="font-medium">{book.semester}</p>
+                      <p className="font-medium">{book.semester || 'Not specified'}</p>
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">File size</p>
-                      <p className="font-medium">{book.metadata.fileSize}</p>
+                      <p className="font-medium">{metadata.fileSize}</p>
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Language</p>
-                      <p className="font-medium">{book.metadata.language}</p>
+                      <p className="font-medium">{metadata.language}</p>
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Uploaded</p>
-                      <p className="font-medium">{book.metadata.uploadedAt}</p>
+                      <p className="font-medium">{metadata.uploadedAt}</p>
                     </div>
                   </div>
                   
@@ -294,17 +377,21 @@ const BookDetails = () => {
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Difficulty level</p>
                     <p className="font-medium">
-                      Level {String(book.grade <= 3 ? '01' : book.grade <= 4 ? '02' : book.grade <= 5 ? '03' : book.grade <= 6 ? '04' : book.grade <= 7 ? '05' : book.grade <= 9 ? '06' : book.grade <= 11 ? '07' : '08')}
+                      Level {book.grade 
+                        ? String(book.grade <= 3 ? '01' : book.grade <= 4 ? '02' : book.grade <= 5 ? '03' : 
+                                book.grade <= 6 ? '04' : book.grade <= 7 ? '05' : book.grade <= 9 ? '06' : 
+                                book.grade <= 11 ? '07' : '08') 
+                        : 'Unknown'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Based on grade level ({book.grade})
+                      {book.grade ? `Based on grade level (${book.grade})` : 'No grade information available'}
                     </p>
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="border-t bg-muted/30 px-6 py-3">
                 <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
-                  <span>Last processed: {book.metadata.lastProcessed}</span>
+                  <span>Last processed: {metadata.lastProcessed}</span>
                   <Button variant="ghost" size="sm" className="flex items-center gap-1" asChild>
                     <Link to={`/book/${id}?tab=settings`}>
                       <Settings className="h-4 w-4" />
@@ -327,21 +414,32 @@ const BookDetails = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {book.questionsCount > 0 ? (
+              {book.questions_count > 0 ? (
                 <div className="space-y-4">
                   <div className="border rounded-md p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <FileSpreadsheet className="h-5 w-5 text-primary mr-2" />
                         <div>
-                          <p className="font-medium">G{book.grade}_{book.subject}_0{book.semester}.csv</p>
+                          <p className="font-medium">
+                            {book.name.split('.')[0]}_questions.csv
+                          </p>
                           <p className="text-sm text-muted-foreground">
-                            {book.questionsCount} questions • {new Date().toLocaleDateString()}
+                            {book.questions_count} questions • {new Date().toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                        <Download className="h-4 w-4 mr-1" />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleExportCSV}
+                        disabled={isExporting}
+                      >
+                        {isExporting ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-1" />
+                        )}
                         Download
                       </Button>
                     </div>
@@ -369,7 +467,7 @@ const BookDetails = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {book.questionsCount === 0 ? (
+              {book.questions_count === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileQuestion className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium">No questions generated yet</h3>
@@ -379,7 +477,7 @@ const BookDetails = () => {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Question samples would go here */}
+                  {/* In a real implementation, we would fetch and display questions here */}
                   <div className="border rounded-md p-4 animate-pulse">
                     <p className="h-4 bg-muted rounded w-3/4 mb-3"></p>
                     <div className="space-y-2">
