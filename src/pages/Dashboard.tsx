@@ -1,21 +1,20 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { 
-  Book, FilePlus, Loader2, RefreshCw, FileText, BookOpenCheck
+  Book, Loader2, RefreshCw, FileText, BookOpenCheck
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import BookList from "@/components/BookList";
-import BookUploader from "@/components/BookUploader";
+import ProcessLogs from "@/components/ProcessLogs";
 import { scanBooks, getBooks } from "@/lib/api";
 
 // Importing necessary interfaces
-// This should match the Book interface in BookList.tsx
 interface Book {
   id: string;
   name: string;
@@ -33,6 +32,7 @@ interface Book {
 
 const Dashboard = () => {
   const [isScanning, setIsScanning] = useState(false);
+  const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
 
   const { 
     data: books = [], 
@@ -43,22 +43,38 @@ const Dashboard = () => {
     queryFn: getBooks
   });
 
-  const handleScanBooks = async () => {
+  // Auto scan on component mount
+  useEffect(() => {
+    handleScanBooks();
+    
+    // Set up interval to scan every 5 minutes
+    const interval = setInterval(() => {
+      handleScanBooks(false); // silent scan
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleScanBooks = async (showToast = true) => {
     setIsScanning(true);
-    toast.info("Scanning books...");
+    if (showToast) toast.info("Scanning books...");
     
     try {
       const result = await scanBooks();
       await refetch();
+      setLastScanTime(new Date());
       
       if (result.success) {
-        toast.success(result.message);
+        if (showToast) toast.success(result.message);
+        if (result.newFiles && result.newFiles.length > 0 && !showToast) {
+          toast.success(`Found and added ${result.newFiles.length} new PDF files.`);
+        }
       } else {
-        toast.error(result.message);
+        if (showToast) toast.error(result.message);
       }
     } catch (error) {
       console.error("Error scanning books:", error);
-      toast.error("Failed to scan books. Please try again.");
+      if (showToast) toast.error("Failed to scan books. Please try again.");
     } finally {
       setIsScanning(false);
     }
@@ -180,7 +196,7 @@ const Dashboard = () => {
 
       <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
         <Button 
-          onClick={handleScanBooks} 
+          onClick={() => handleScanBooks(true)} 
           disabled={isScanning}
           className="group"
         >
@@ -189,10 +205,8 @@ const Dashboard = () => {
           ) : (
             <RefreshCw className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
           )}
-          Basic Scan
+          Scan for New PDFs
         </Button>
-        
-        <BookUploader onUploadSuccess={refetch} />
       </motion.div>
 
       <motion.div variants={itemVariants}>
@@ -203,7 +217,7 @@ const Dashboard = () => {
               Books
             </CardTitle>
             <CardDescription>
-              Books detected in your storage that can be processed for questions.
+              PDF books detected in your storage that can be processed for questions.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -212,39 +226,32 @@ const Dashboard = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <BookList books={books} />
+              <BookList books={books} onBookUpdate={refetch} />
             )}
           </CardContent>
           <CardFooter className="border-t bg-muted/30 px-6 py-3">
             <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
-              <span>Last scan: {new Date().toLocaleString()}</span>
-              <BookUploader onUploadSuccess={refetch} />
+              <span>Last scan: {lastScanTime ? lastScanTime.toLocaleString() : 'Never'}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleScanBooks(true)}
+                disabled={isScanning}
+              >
+                {isScanning ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Scan Now
+              </Button>
             </div>
           </CardFooter>
         </Card>
       </motion.div>
 
       <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="mr-2 h-5 w-5 text-primary" />
-              Recent Outputs
-            </CardTitle>
-            <CardDescription>
-              Recently generated CSV files with question sets.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium">No outputs yet</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                Process books to generate question sets which will be exported as CSV files.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <ProcessLogs />
       </motion.div>
     </motion.div>
   );

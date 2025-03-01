@@ -54,9 +54,12 @@ serve(async (req) => {
     } else if (action === 'pause') {
       updatedStatus = 'idle';
       message = 'Book processing paused';
+    } else if (action === 'cancel') {
+      updatedStatus = 'canceled';
+      message = 'Book processing canceled';
     } else {
       return new Response(
-        JSON.stringify({ error: 'Invalid action. Use "start" or "pause".' }),
+        JSON.stringify({ error: 'Invalid action. Use "start", "pause", or "cancel".' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -79,6 +82,9 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
+
+    // Log the action (in a real implementation, you'd store this in a logs table)
+    console.log(`Book ${bookId} - ${message}`);
 
     return new Response(
       JSON.stringify({ 

@@ -1,8 +1,9 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Play, Pause, FileQuestion, Loader2, Book, ArrowRight } from "lucide-react";
+import { Play, Pause, StopCircle, Loader2, Book, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { processBook, pauseProcessing } from "@/lib/api";
+import { processBook, pauseProcessing, cancelProcessing } from "@/lib/api";
 
 // Define Book interface with string status type to match Supabase response
 interface Book {
@@ -27,7 +28,7 @@ interface Book {
   semester?: number;
   total_pages?: number;
   processed_pages?: number;
-  status: string; // Changed from literal union to string to match Supabase response
+  status: string;
   questions_count?: number;
   file_path: string;
   created_at: string;
@@ -36,13 +37,14 @@ interface Book {
 
 interface BookListProps {
   books: Book[];
+  onBookUpdate?: () => void;
 }
 
-const BookList: React.FC<BookListProps> = ({ books }) => {
+const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
   const [processingBooks, setProcessingBooks] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
 
-  const handleProcess = async (bookId: string, currentStatus: Book["status"]) => {
+  const handleProcess = async (bookId: string, currentStatus: string) => {
     setIsLoading(prev => ({ ...prev, [bookId]: true }));
     
     try {
@@ -53,6 +55,7 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
         if (result.success) {
           setProcessingBooks(prev => ({ ...prev, [bookId]: false }));
           toast.success("Question generation paused!");
+          if (onBookUpdate) onBookUpdate();
         } else {
           toast.error(result.message || "Failed to pause processing");
         }
@@ -63,6 +66,7 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
         if (result.success) {
           setProcessingBooks(prev => ({ ...prev, [bookId]: true }));
           toast.success("Question generation started!");
+          if (onBookUpdate) onBookUpdate();
         } else {
           toast.error(result.message || "Failed to start processing");
         }
@@ -75,7 +79,29 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
     }
   };
 
-  const getStatusBadge = (status: Book["status"]) => {
+  const handleCancel = async (bookId: string) => {
+    setIsLoading(prev => ({ ...prev, [bookId]: true }));
+    
+    try {
+      toast.info("Canceling question generation...");
+      const result = await cancelProcessing(bookId);
+      
+      if (result.success) {
+        setProcessingBooks(prev => ({ ...prev, [bookId]: false }));
+        toast.success("Question generation canceled!");
+        if (onBookUpdate) onBookUpdate();
+      } else {
+        toast.error(result.message || "Failed to cancel processing");
+      }
+    } catch (error) {
+      console.error("Error canceling process:", error);
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(prev => ({ ...prev, [bookId]: false }));
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "idle":
         return <Badge variant="outline">Not Started</Badge>;
@@ -85,6 +111,8 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
         return <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">Completed</Badge>;
       case "error":
         return <Badge variant="destructive">Error</Badge>;
+      case "canceled":
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100">Canceled</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -96,7 +124,7 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
         <Book className="h-12 w-12 text-muted-foreground/50 mb-4" />
         <h3 className="text-lg font-medium">No books found</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-md">
-          Upload books to the 'books' folder in Supabase storage to start generating questions.
+          Upload PDF files to the 'books' folder in Supabase storage to start generating questions.
         </p>
       </div>
     );
@@ -162,7 +190,7 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => handleProcess(book.id, book.status)}
-                          disabled={isLoading[book.id]}
+                          disabled={isLoading[book.id] || book.status === "completed" || book.status === "canceled"}
                         >
                           {isLoading[book.id] ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -175,6 +203,25 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
                       </TooltipTrigger>
                       <TooltipContent>
                         {book.status === "processing" ? 'Pause processing' : 'Start processing'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleCancel(book.id)}
+                          disabled={isLoading[book.id] || book.status !== "processing"}
+                        >
+                          <StopCircle size={14} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Cancel processing
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>

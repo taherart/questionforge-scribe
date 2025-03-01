@@ -28,16 +28,37 @@ export const scanBooks = async () => {
     
     // Find files that aren't in the database yet
     const existingPaths = existingBooks?.map(book => book.file_path) || [];
-    const newFiles = storageFiles?.filter(file => !existingPaths.includes(file.name)) || [];
+    const newFiles = storageFiles?.filter(file => 
+      !existingPaths.includes(file.name) && 
+      file.name.toLowerCase().endsWith('.pdf')
+    ) || [];
     
-    console.log(`Found ${newFiles.length} new files to add to the database`);
+    console.log(`Found ${newFiles.length} new PDF files to add to the database`);
     
-    // For demo purposes, we're not automatically adding the new files to the database
-    // In a real implementation, you would want to process these files
+    // Add new files to the database
+    if (newFiles.length > 0) {
+      const booksToInsert = newFiles.map(file => ({
+        name: file.name,
+        file_path: file.name,
+        status: 'idle'
+      }));
+      
+      const { data: insertedBooks, error: insertError } = await supabase
+        .from('books')
+        .insert(booksToInsert)
+        .select();
+      
+      if (insertError) {
+        console.error("Error adding new books to database:", insertError);
+        throw insertError;
+      }
+      
+      console.log(`Added ${insertedBooks?.length || 0} new books to database`);
+    }
     
     return {
       success: true,
-      message: `Scan complete. Found ${newFiles.length} new files.`,
+      message: `Scan complete. Found and added ${newFiles.length} new PDF files.`,
       newFiles
     };
   } catch (error) {
@@ -45,6 +66,34 @@ export const scanBooks = async () => {
     return {
       success: false,
       message: "Failed to scan books",
+      error
+    };
+  }
+};
+
+export const cancelProcessing = async (bookId: string) => {
+  console.log(`Canceling processing for book ${bookId}...`);
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('process-book', {
+      body: { bookId, action: 'cancel' },
+    });
+    
+    if (error) {
+      console.error("Error canceling book processing:", error);
+      throw error;
+    }
+    
+    return {
+      success: true,
+      message: "Book processing canceled successfully",
+      book: data.book
+    };
+  } catch (error) {
+    console.error("Error canceling book processing:", error);
+    return {
+      success: false,
+      message: "Failed to cancel book processing",
       error
     };
   }
