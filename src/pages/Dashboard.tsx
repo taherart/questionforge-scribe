@@ -1,15 +1,12 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  Book, Loader2, RefreshCw, FileText, BookOpenCheck
-} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import BookList from "@/components/BookList";
+import DashboardStats from "@/components/dashboard/DashboardStats";
+import ScanBooksButton from "@/components/dashboard/ScanBooksButton";
+import BooksCard from "@/components/dashboard/BooksCard";
 import ProcessLogs from "@/components/ProcessLogs";
 import { scanBooks, getBooks } from "@/lib/api";
 import { Book as BookType } from "@/types/book";
@@ -111,138 +108,18 @@ const Dashboard = () => {
         </motion.p>
       </div>
 
-      <motion.div 
-        variants={itemVariants}
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-      >
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Books</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              ) : (
-                safeBooks.length
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Uploaded materials
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Questions Created</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              ) : (
-                safeBooks.reduce((sum, book) => sum + (book.questions_count || 0), 0)
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Total questions generated
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Processing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              ) : (
-                safeBooks.filter(book => book.status === 'processing').length
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Books in progress
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">CSV Files</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              ) : (
-                safeBooks.filter(book => book.status === 'completed').length
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Exported question sets
-            </p>
-          </CardContent>
-        </Card>
-      </motion.div>
+      <DashboardStats books={safeBooks} isLoading={isLoading} />
 
-      <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
-        <Button 
-          onClick={() => handleScanBooks(true)} 
-          disabled={isScanning}
-          className="group"
-        >
-          {isScanning ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
-          )}
-          Scan for New PDFs
-        </Button>
-      </motion.div>
+      <ScanBooksButton isScanning={isScanning} onScan={handleScanBooks} />
 
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Book className="mr-2 h-5 w-5 text-primary" />
-              Books
-            </CardTitle>
-            <CardDescription>
-              PDF books detected in your storage that can be processed for questions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <BookList books={safeBooks} onBookUpdate={handleRefetch} />
-            )}
-          </CardContent>
-          <CardFooter className="border-t bg-muted/30 px-6 py-3">
-            <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
-              <span>Last scan: {lastScanTime ? lastScanTime.toLocaleString() : 'Never'}</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleScanBooks(true)}
-                disabled={isScanning}
-              >
-                {isScanning ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                Scan Now
-              </Button>
-            </div>
-          </CardFooter>
-        </Card>
-      </motion.div>
+      <BooksCard 
+        books={safeBooks}
+        isLoading={isLoading}
+        isScanning={isScanning}
+        lastScanTime={lastScanTime}
+        onRefetch={handleRefetch}
+        onScan={handleScanBooks}
+      />
 
       <motion.div variants={itemVariants}>
         <ProcessLogs />
