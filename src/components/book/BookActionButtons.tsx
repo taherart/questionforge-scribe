@@ -22,7 +22,7 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
   // Check if status allows for processing actions based on valid statuses
   const canProcess = ["idle", "paused"].includes(status);
   const isProcessing = status === "processing";
-  const canCancel = status === "processing";
+  const canCancel = isProcessing;
 
   return (
     <div className="flex items-center justify-end space-x-2">
