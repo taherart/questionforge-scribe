@@ -17,6 +17,14 @@ export const scanBooks = async () => {
       throw storageError;
     }
     
+    if (!storageFiles || storageFiles.length === 0) {
+      return {
+        success: true,
+        message: "No files found in storage",
+        newFiles: []
+      };
+    }
+    
     // Then get all books already in the database
     const { data: existingBooks, error: dbError } = await supabase
       .from('books')
@@ -66,7 +74,7 @@ export const scanBooks = async () => {
     console.error("Error scanning books:", error);
     return {
       success: false,
-      message: "Failed to scan books",
+      message: "Failed to scan books: " + (error.message || String(error)),
       error
     };
   }
@@ -98,7 +106,7 @@ export const getBookById = async (bookId: string) => {
       .from('books')
       .select('*')
       .eq('id', bookId)
-      .single();
+      .maybeSingle();
     
     if (error) {
       console.error("Error fetching book:", error);
@@ -115,6 +123,10 @@ export const getBookById = async (bookId: string) => {
 
 export const uploadBook = async (file: File, metadata: { grade?: number, subject?: string, semester?: number }) => {
   try {
+    if (!file || !(file instanceof File)) {
+      throw new Error("Invalid file provided");
+    }
+    
     // Create a form data object to send the file and metadata
     const formData = new FormData();
     formData.append('file', file);

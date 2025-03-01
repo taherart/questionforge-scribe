@@ -21,7 +21,8 @@ import {
   processBook, 
   pauseProcessing, 
   cancelProcessing, 
-  updateBookProgress 
+  updateBookProgress,
+  extractBookMetadata
 } from "@/lib/api";
 
 // Define Book interface with string status type to match Supabase response
@@ -52,15 +53,21 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
 
   // Initialize local book states with the props
   useEffect(() => {
+    if (!books || books.length === 0) return;
+    
     const bookStateMap: Record<string, Book> = {};
     books.forEach(book => {
-      bookStateMap[book.id] = book;
+      if (book.id) {
+        bookStateMap[book.id] = book;
+      }
     });
     setBookStates(bookStateMap);
   }, [books]);
 
   // Periodically update progress for processing books
   useEffect(() => {
+    if (!books || books.length === 0) return;
+    
     const processingBookIds = books
       .filter(book => book.status === 'processing')
       .map(book => book.id);
@@ -75,8 +82,8 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
     setProcessingBooks(newProcessingBooks);
     
     // Set up progress checking
-    const intervalId = setInterval(() => {
-      processingBookIds.forEach(async (bookId) => {
+    const intervalId = setInterval(async () => {
+      for (const bookId of processingBookIds) {
         try {
           const result = await updateBookProgress(bookId);
           if (result.success && result.book) {
@@ -95,11 +102,11 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
         } catch (error) {
           console.error(`Error updating progress for book ${bookId}:`, error);
         }
-      });
+      }
     }, 3000); // Check every 3 seconds
     
     return () => clearInterval(intervalId);
-  }, [books, bookStates, onBookUpdate]);
+  }, [books, bookStates, onBookUpdate, processingBooks]);
 
   const handleProcess = async (bookId: string, currentStatus: string) => {
     setIsLoading(prev => ({ ...prev, [bookId]: true }));
@@ -126,6 +133,21 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
           toast.error(result.message || "Failed to pause processing");
         }
       } else {
+        // If the book doesn't have total_pages set, extract metadata first
+        const book = bookStates[bookId];
+        if (!book.total_pages) {
+          toast.info("Extracting book metadata...");
+          const metadataResult = await extractBookMetadata(bookId);
+          if (!metadataResult.success) {
+            toast.error("Failed to extract book metadata. Please try again.");
+            setIsLoading(prev => ({ ...prev, [bookId]: false }));
+            return;
+          }
+          
+          // Refresh the book to get updated metadata
+          if (onBookUpdate) onBookUpdate();
+        }
+        
         toast.info("Starting question generation...");
         const result = await processBook(bookId);
         
@@ -189,6 +211,8 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
     switch (status) {
       case "idle":
         return <Badge variant="outline">Not Started</Badge>;
+      case "paused":
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Paused</Badge>;
       case "processing":
         return <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100">Processing</Badge>;
       case "completed":
@@ -202,7 +226,7 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
     }
   };
 
-  if (books.length === 0) {
+  if (!books || books.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Book className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -215,7 +239,7 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
   }
 
   // Use the book states for rendering when available, otherwise fall back to props
-  const booksToRender = books.map(book => bookStates[book.id] || book);
+  const booksToRender = books.map(book => (book.id && bookStates[book.id]) || book);
 
   return (
     <div className="overflow-x-auto">

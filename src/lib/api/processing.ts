@@ -21,7 +21,24 @@ export const processBook = async (bookId: string) => {
     // If total_pages is not set, we need to extract metadata first
     if (!bookData.total_pages) {
       console.log("Total pages not set, extracting metadata first...");
-      await extractBookMetadata(bookId);
+      const metadataResult = await extractBookMetadata(bookId);
+      if (!metadataResult.success) {
+        throw new Error("Failed to extract book metadata");
+      }
+    }
+    
+    // Update the book status to processing
+    const { error: updateError } = await supabase
+      .from('books')
+      .update({
+        status: 'processing',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookId);
+    
+    if (updateError) {
+      console.error("Error updating book status:", updateError);
+      throw updateError;
     }
     
     // Now start the actual processing
@@ -37,19 +54,19 @@ export const processBook = async (bookId: string) => {
     return {
       success: true,
       message: "Book processing started successfully",
-      book: data.book
+      book: data?.book || bookData
     };
   } catch (error) {
     console.error("Error processing book:", error);
     return {
       success: false,
-      message: "Failed to process book",
+      message: "Failed to process book: " + (error.message || String(error)),
       error
     };
   }
 };
 
-// Add a new function to extract metadata (total pages, etc.)
+// Extract metadata (total pages, etc.)
 export const extractBookMetadata = async (bookId: string) => {
   console.log(`Extracting metadata for book ${bookId}...`);
   
@@ -75,11 +92,13 @@ export const extractBookMetadata = async (bookId: string) => {
       throw error;
     }
     
+    const totalPages = data?.totalPages || 0;
+    
     // Update the book with metadata
     const { error: updateError } = await supabase
       .from('books')
       .update({
-        total_pages: data.totalPages || 0,
+        total_pages: totalPages,
         updated_at: new Date().toISOString()
       })
       .eq('id', bookId);
@@ -92,13 +111,13 @@ export const extractBookMetadata = async (bookId: string) => {
     return {
       success: true,
       message: "Book metadata extracted successfully",
-      totalPages: data.totalPages
+      totalPages: totalPages
     };
   } catch (error) {
     console.error("Error extracting book metadata:", error);
     return {
       success: false,
-      message: "Failed to extract book metadata",
+      message: "Failed to extract book metadata: " + (error.message || String(error)),
       error
     };
   }
@@ -108,6 +127,21 @@ export const pauseProcessing = async (bookId: string) => {
   console.log(`Pausing processing for book ${bookId}...`);
   
   try {
+    // First update the book status
+    const { error: updateError } = await supabase
+      .from('books')
+      .update({
+        status: 'paused',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookId);
+    
+    if (updateError) {
+      console.error("Error updating book status:", updateError);
+      throw updateError;
+    }
+    
+    // Then call the edge function
     const { data, error } = await supabase.functions.invoke('process-book', {
       body: { bookId, action: 'pause' },
     });
@@ -117,16 +151,28 @@ export const pauseProcessing = async (bookId: string) => {
       throw error;
     }
     
+    // Fetch the updated book to return
+    const { data: book, error: bookError } = await supabase
+      .from('books')
+      .select('*')
+      .eq('id', bookId)
+      .single();
+    
+    if (bookError) {
+      console.error("Error fetching updated book:", bookError);
+      throw bookError;
+    }
+    
     return {
       success: true,
       message: "Book processing paused successfully",
-      book: data.book
+      book: book
     };
   } catch (error) {
     console.error("Error pausing book processing:", error);
     return {
       success: false,
-      message: "Failed to pause book processing",
+      message: "Failed to pause book processing: " + (error.message || String(error)),
       error
     };
   }
@@ -136,6 +182,21 @@ export const cancelProcessing = async (bookId: string) => {
   console.log(`Canceling processing for book ${bookId}...`);
   
   try {
+    // First update the book status
+    const { error: updateError } = await supabase
+      .from('books')
+      .update({
+        status: 'canceled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookId);
+    
+    if (updateError) {
+      console.error("Error updating book status:", updateError);
+      throw updateError;
+    }
+    
+    // Then call the edge function
     const { data, error } = await supabase.functions.invoke('process-book', {
       body: { bookId, action: 'cancel' },
     });
@@ -145,16 +206,28 @@ export const cancelProcessing = async (bookId: string) => {
       throw error;
     }
     
+    // Fetch the updated book to return
+    const { data: book, error: bookError } = await supabase
+      .from('books')
+      .select('*')
+      .eq('id', bookId)
+      .single();
+    
+    if (bookError) {
+      console.error("Error fetching updated book:", bookError);
+      throw bookError;
+    }
+    
     return {
       success: true,
       message: "Book processing canceled successfully",
-      book: data.book
+      book: book
     };
   } catch (error) {
     console.error("Error canceling book processing:", error);
     return {
       success: false,
-      message: "Failed to cancel book processing",
+      message: "Failed to cancel book processing: " + (error.message || String(error)),
       error
     };
   }
@@ -163,6 +236,28 @@ export const cancelProcessing = async (bookId: string) => {
 // Add function to check and update book progress
 export const updateBookProgress = async (bookId: string) => {
   try {
+    // First check if the book is in processing state
+    const { data: book, error: bookError } = await supabase
+      .from('books')
+      .select('*')
+      .eq('id', bookId)
+      .single();
+    
+    if (bookError) {
+      console.error("Error fetching book:", bookError);
+      throw bookError;
+    }
+    
+    // Only call the function if the book is in processing state
+    if (book.status !== 'processing') {
+      return {
+        success: true,
+        progress: book.processed_pages ? (book.processed_pages / book.total_pages) * 100 : 0,
+        book: book
+      };
+    }
+    
+    // Call the Supabase edge function to check progress
     const { data, error } = await supabase.functions.invoke('check-book-progress', {
       body: { bookId },
     });
@@ -174,14 +269,14 @@ export const updateBookProgress = async (bookId: string) => {
     
     return {
       success: true,
-      progress: data.progress,
-      book: data.book
+      progress: data?.progress || 0,
+      book: data?.book || book
     };
   } catch (error) {
     console.error("Error checking book progress:", error);
     return {
       success: false,
-      message: "Failed to check book progress",
+      message: "Failed to check book progress: " + (error.message || String(error)),
       error
     };
   }

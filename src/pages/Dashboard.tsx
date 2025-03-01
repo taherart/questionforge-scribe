@@ -102,6 +102,9 @@ const Dashboard = () => {
     visible: { opacity: 1, y: 0 }
   };
 
+  // Ensure books array is properly initialized
+  const safeBooks = Array.isArray(books) ? books : [];
+
   return (
     <motion.div
       variants={containerVariants}
@@ -137,7 +140,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                books.length
+                safeBooks.length
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -155,7 +158,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                books.reduce((sum, book) => sum + (book.questions_count || 0), 0)
+                safeBooks.reduce((sum, book) => sum + (book.questions_count || 0), 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -173,7 +176,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                books.filter(book => book.status === 'processing').length
+                safeBooks.filter(book => book.status === 'processing').length
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -191,7 +194,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                books.filter(book => book.status === 'completed').length
+                safeBooks.filter(book => book.status === 'completed').length
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -233,7 +236,7 @@ const Dashboard = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <BookList books={books} onBookUpdate={handleRefetch} />
+              <BookList books={safeBooks} onBookUpdate={handleRefetch} />
             )}
           </CardContent>
           <CardFooter className="border-t bg-muted/30 px-6 py-3">
