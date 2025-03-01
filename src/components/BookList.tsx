@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -17,7 +17,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { processBook, pauseProcessing, cancelProcessing } from "@/lib/api";
+import { 
+  processBook, 
+  pauseProcessing, 
+  cancelProcessing, 
+  updateBookProgress 
+} from "@/lib/api";
 
 // Define Book interface with string status type to match Supabase response
 interface Book {
@@ -43,6 +48,58 @@ interface BookListProps {
 const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
   const [processingBooks, setProcessingBooks] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
+  const [bookStates, setBookStates] = useState<Record<string, Book>>({});
+
+  // Initialize local book states with the props
+  useEffect(() => {
+    const bookStateMap: Record<string, Book> = {};
+    books.forEach(book => {
+      bookStateMap[book.id] = book;
+    });
+    setBookStates(bookStateMap);
+  }, [books]);
+
+  // Periodically update progress for processing books
+  useEffect(() => {
+    const processingBookIds = books
+      .filter(book => book.status === 'processing')
+      .map(book => book.id);
+    
+    if (processingBookIds.length === 0) return;
+    
+    // Mark books as processing in state
+    const newProcessingBooks = { ...processingBooks };
+    processingBookIds.forEach(id => {
+      newProcessingBooks[id] = true;
+    });
+    setProcessingBooks(newProcessingBooks);
+    
+    // Set up progress checking
+    const intervalId = setInterval(() => {
+      processingBookIds.forEach(async (bookId) => {
+        try {
+          const result = await updateBookProgress(bookId);
+          if (result.success && result.book) {
+            // Update the book in local state
+            setBookStates(prev => ({
+              ...prev,
+              [bookId]: result.book
+            }));
+            
+            // If book is completed, notify user and trigger refresh
+            if (result.book.status === 'completed' && bookStates[bookId]?.status === 'processing') {
+              toast.success(`Processing completed for "${result.book.name}"`);
+              if (onBookUpdate) onBookUpdate();
+            }
+          }
+        } catch (error) {
+          console.error(`Error updating progress for book ${bookId}:`, error);
+        }
+      });
+    }, 3000); // Check every 3 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [books, bookStates, onBookUpdate]);
 
   const handleProcess = async (bookId: string, currentStatus: string) => {
     setIsLoading(prev => ({ ...prev, [bookId]: true }));
@@ -55,6 +112,15 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
         if (result.success) {
           setProcessingBooks(prev => ({ ...prev, [bookId]: false }));
           toast.success("Question generation paused!");
+          
+          // Update local state
+          if (result.book) {
+            setBookStates(prev => ({
+              ...prev,
+              [bookId]: result.book
+            }));
+          }
+          
           if (onBookUpdate) onBookUpdate();
         } else {
           toast.error(result.message || "Failed to pause processing");
@@ -66,6 +132,15 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
         if (result.success) {
           setProcessingBooks(prev => ({ ...prev, [bookId]: true }));
           toast.success("Question generation started!");
+          
+          // Update local state
+          if (result.book) {
+            setBookStates(prev => ({
+              ...prev,
+              [bookId]: result.book
+            }));
+          }
+          
           if (onBookUpdate) onBookUpdate();
         } else {
           toast.error(result.message || "Failed to start processing");
@@ -89,6 +164,15 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
       if (result.success) {
         setProcessingBooks(prev => ({ ...prev, [bookId]: false }));
         toast.success("Question generation canceled!");
+        
+        // Update local state
+        if (result.book) {
+          setBookStates(prev => ({
+            ...prev,
+            [bookId]: result.book
+          }));
+        }
+        
         if (onBookUpdate) onBookUpdate();
       } else {
         toast.error(result.message || "Failed to cancel processing");
@@ -130,6 +214,9 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
     );
   }
 
+  // Use the book states for rendering when available, otherwise fall back to props
+  const booksToRender = books.map(book => bookStates[book.id] || book);
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -143,7 +230,7 @@ const BookList: React.FC<BookListProps> = ({ books, onBookUpdate }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {books.map((book) => (
+          {booksToRender.map((book) => (
             <motion.tr
               key={book.id}
               initial={{ opacity: 0, y: 10 }}

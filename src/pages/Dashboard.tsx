@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -34,14 +34,21 @@ const Dashboard = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
 
+  // Update more frequently to show progress in real-time
   const { 
     data: books = [], 
     isLoading,
     refetch 
   } = useQuery({
     queryKey: ["books"],
-    queryFn: getBooks
+    queryFn: getBooks,
+    refetchInterval: 5000, // Refetch every 5 seconds to show progress updates
   });
+
+  // Create a memoized refetch function
+  const handleRefetch = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   // Auto scan on component mount for metadata only
   useEffect(() => {
@@ -226,7 +233,7 @@ const Dashboard = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <BookList books={books} onBookUpdate={refetch} />
+              <BookList books={books} onBookUpdate={handleRefetch} />
             )}
           </CardContent>
           <CardFooter className="border-t bg-muted/30 px-6 py-3">
