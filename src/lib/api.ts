@@ -1,8 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const scanBooks = async () => {
-  console.log("Scanning books from Supabase storage...");
+  console.log("Scanning books from Supabase storage (metadata only)...");
   
   try {
     // First, list all files in the books bucket
@@ -35,12 +36,12 @@ export const scanBooks = async () => {
     
     console.log(`Found ${newFiles.length} new PDF files to add to the database`);
     
-    // Add new files to the database
+    // Add new files to the database with 'idle' status (not auto-processing)
     if (newFiles.length > 0) {
       const booksToInsert = newFiles.map(file => ({
         name: file.name,
         file_path: file.name,
-        status: 'idle'
+        status: 'idle' // Set to idle, not processing
       }));
       
       const { data: insertedBooks, error: insertError } = await supabase
@@ -53,12 +54,12 @@ export const scanBooks = async () => {
         throw insertError;
       }
       
-      console.log(`Added ${insertedBooks?.length || 0} new books to database`);
+      console.log(`Added ${insertedBooks?.length || 0} new books to database (not auto-processing)`);
     }
     
     return {
       success: true,
-      message: `Scan complete. Found and added ${newFiles.length} new PDF files.`,
+      message: `Scan complete. Found and added ${newFiles.length} new PDF files. Click start button to begin processing.`,
       newFiles
     };
   } catch (error) {

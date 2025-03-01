@@ -43,11 +43,11 @@ const Dashboard = () => {
     queryFn: getBooks
   });
 
-  // Auto scan on component mount
+  // Auto scan on component mount for metadata only
   useEffect(() => {
     handleScanBooks();
     
-    // Set up interval to scan every 5 minutes
+    // Set up interval to scan for new PDFs every 5 minutes, but don't auto-start processing
     const interval = setInterval(() => {
       handleScanBooks(false); // silent scan
     }, 5 * 60 * 1000);

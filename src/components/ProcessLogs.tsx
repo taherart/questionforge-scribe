@@ -23,10 +23,10 @@ const ProcessLogs = () => {
       // For demo purposes, we're creating mock logs
       // In a real implementation, you would fetch these from a logs table in Supabase
       const mockLogs: ProcessLog[] = [
-        { timestamp: new Date().toISOString(), message: 'Starting book processing...', level: 'info' },
-        { timestamp: new Date(Date.now() - 60000).toISOString(), message: 'Extracted 5 questions from page 1', level: 'info' },
-        { timestamp: new Date(Date.now() - 120000).toISOString(), message: 'Extracted 7 questions from page 2', level: 'info' },
-        { timestamp: new Date(Date.now() - 180000).toISOString(), message: 'Warning: Unclear content on page 3', level: 'warn' },
+        { timestamp: new Date().toISOString(), message: 'Scanning for new PDF files...', level: 'info' },
+        { timestamp: new Date(Date.now() - 60000).toISOString(), message: 'Found new file: textbook.pdf', level: 'info' },
+        { timestamp: new Date(Date.now() - 120000).toISOString(), message: 'Waiting for processing to be started manually', level: 'info' },
+        { timestamp: new Date(Date.now() - 180000).toISOString(), message: 'To start question extraction, click the play button next to a book', level: 'warn' },
       ];
       
       setLogs(mockLogs);
