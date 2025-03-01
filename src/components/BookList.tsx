@@ -112,7 +112,7 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
                 semester: 1,
                 totalPages: 120,
                 processedPages: 0,
-                status: "idle",
+                status: "idle" as const,
                 questionsCount: 0
               },
               {
@@ -123,7 +123,7 @@ const BookList: React.FC<BookListProps> = ({ books }) => {
                 semester: 2,
                 totalPages: 150,
                 processedPages: 0,
-                status: "idle",
+                status: "idle" as const,
                 questionsCount: 0
               }
             ].map((book) => (
