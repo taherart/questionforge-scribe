@@ -18,6 +18,15 @@ export const processBook = async (bookId: string) => {
       throw bookError;
     }
     
+    // Check if book is in a valid state to start processing
+    if (bookData.status !== 'idle' && bookData.status !== 'paused') {
+      return {
+        success: false,
+        message: `Cannot start processing a book with status: ${bookData.status}`,
+        book: bookData
+      };
+    }
+    
     // If total_pages is not set, we need to extract metadata first
     if (!bookData.total_pages) {
       console.log("Total pages not set, extracting metadata first...");

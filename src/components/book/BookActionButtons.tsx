@@ -19,8 +19,9 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
   onProcess,
   onCancel
 }) => {
-  // Check if status allows for processing actions
-  const canProcess = status !== "completed" && status !== "canceled";
+  // Check if status allows for processing actions based on valid statuses
+  const canProcess = ["idle", "paused"].includes(status);
+  const isProcessing = status === "processing";
   const canCancel = status === "processing";
 
   return (
@@ -33,11 +34,11 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
               size="icon"
               className="h-8 w-8"
               onClick={() => onProcess(bookId, status)}
-              disabled={isLoading || !canProcess}
+              disabled={isLoading || (!canProcess && !isProcessing)}
             >
               {isLoading ? (
                 <Loader2 size={14} className="animate-spin" />
-              ) : status === "processing" ? (
+              ) : isProcessing ? (
                 <Pause size={14} />
               ) : (
                 <Play size={14} />
@@ -45,7 +46,7 @@ const BookActionButtons: React.FC<BookActionButtonsProps> = ({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {status === "processing" ? 'Pause processing' : 'Start processing'}
+            {isProcessing ? 'Pause processing' : 'Start processing'}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
