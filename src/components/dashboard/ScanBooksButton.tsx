@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ScanBooksButtonProps {
   isScanning: boolean;
@@ -14,10 +15,19 @@ const itemVariants = {
 };
 
 const ScanBooksButton: React.FC<ScanBooksButtonProps> = ({ isScanning, onScan }) => {
+  const handleScan = async () => {
+    try {
+      await onScan(true);
+    } catch (error) {
+      console.error("Error scanning for books:", error);
+      toast.error("Failed to scan for books. Please try again.");
+    }
+  };
+
   return (
     <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
       <Button 
-        onClick={() => onScan(true)} 
+        onClick={handleScan} 
         disabled={isScanning}
         className="group"
       >
