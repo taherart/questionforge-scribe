@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -94,9 +93,11 @@ export const getBookById = async (bookId: string) => {
 
 export const uploadBook = async (file: File, metadata: { grade?: number, subject?: string, semester?: number }) => {
   try {
+    // Create a form data object to send the file and metadata
     const formData = new FormData();
     formData.append('file', file);
     
+    // Add metadata to the form data if provided
     if (metadata.grade) {
       formData.append('grade', metadata.grade.toString());
     }
@@ -109,28 +110,55 @@ export const uploadBook = async (file: File, metadata: { grade?: number, subject
       formData.append('semester', metadata.semester.toString());
     }
     
-    const { data, error } = await supabase.functions.invoke('upload-book', {
-      body: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Upload the file to Supabase storage
+    const fileName = file.name.replace(/[^\x00-\x7F]/g, ''); // Sanitize filename
+    const fileExt = fileName.split('.').pop();
+    const filePath = `${crypto.randomUUID()}.${fileExt}`;
     
-    if (error) {
-      console.error("Error uploading book:", error);
-      throw error;
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from('books')
+      .upload(filePath, file);
+      
+    if (storageError) {
+      console.error("Error uploading to storage:", storageError);
+      throw storageError;
+    }
+    
+    // Insert record into the books table
+    const { data: bookData, error: dbError } = await supabase
+      .from('books')
+      .insert({
+        name: fileName,
+        file_path: filePath,
+        grade: metadata.grade,
+        subject: metadata.subject,
+        semester: metadata.semester,
+        status: 'idle',
+      })
+      .select()
+      .single();
+    
+    if (dbError) {
+      console.error("Error inserting book record:", dbError);
+      
+      // Clean up the uploaded file if database insert fails
+      await supabase.storage
+        .from('books')
+        .remove([filePath]);
+        
+      throw dbError;
     }
     
     return {
       success: true,
       message: "Book uploaded successfully",
-      book: data.book
+      book: bookData
     };
   } catch (error) {
-    console.error("Error uploading book:", error);
+    console.error("Error in uploadBook:", error);
     return {
       success: false,
-      message: "Failed to upload book",
+      message: "Failed to upload book: " + (error.message || String(error)),
       error
     };
   }

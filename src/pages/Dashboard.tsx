@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import BookList from "@/components/BookList";
+import BookUploader from "@/components/BookUploader";
 import { scanBooks, getBooks } from "@/lib/api";
 
 // Importing necessary interfaces
@@ -189,6 +191,8 @@ const Dashboard = () => {
           )}
           Basic Scan
         </Button>
+        
+        <BookUploader onUploadSuccess={refetch} />
       </motion.div>
 
       <motion.div variants={itemVariants}>
@@ -214,10 +218,7 @@ const Dashboard = () => {
           <CardFooter className="border-t bg-muted/30 px-6 py-3">
             <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
               <span>Last scan: {new Date().toLocaleString()}</span>
-              <Button variant="ghost" size="sm" className="flex items-center gap-1">
-                <FilePlus className="h-4 w-4" />
-                <span className="hidden sm:inline">Upload</span>
-              </Button>
+              <BookUploader onUploadSuccess={refetch} />
             </div>
           </CardFooter>
         </Card>
