@@ -72,34 +72,6 @@ export const scanBooks = async () => {
   }
 };
 
-export const cancelProcessing = async (bookId: string) => {
-  console.log(`Canceling processing for book ${bookId}...`);
-  
-  try {
-    const { data, error } = await supabase.functions.invoke('process-book', {
-      body: { bookId, action: 'cancel' },
-    });
-    
-    if (error) {
-      console.error("Error canceling book processing:", error);
-      throw error;
-    }
-    
-    return {
-      success: true,
-      message: "Book processing canceled successfully",
-      book: data.book
-    };
-  } catch (error) {
-    console.error("Error canceling book processing:", error);
-    return {
-      success: false,
-      message: "Failed to cancel book processing",
-      error
-    };
-  }
-};
-
 export const getBooks = async () => {
   try {
     const { data, error } = await supabase
@@ -209,94 +181,6 @@ export const uploadBook = async (file: File, metadata: { grade?: number, subject
     return {
       success: false,
       message: "Failed to upload book: " + (error.message || String(error)),
-      error
-    };
-  }
-};
-
-export const processBook = async (bookId: string) => {
-  console.log(`Processing book ${bookId}...`);
-  
-  try {
-    const { data, error } = await supabase.functions.invoke('process-book', {
-      body: { bookId, action: 'start' },
-    });
-    
-    if (error) {
-      console.error("Error processing book:", error);
-      throw error;
-    }
-    
-    return {
-      success: true,
-      message: "Book processing started successfully",
-      book: data.book
-    };
-  } catch (error) {
-    console.error("Error processing book:", error);
-    return {
-      success: false,
-      message: "Failed to process book",
-      error
-    };
-  }
-};
-
-export const pauseProcessing = async (bookId: string) => {
-  console.log(`Pausing processing for book ${bookId}...`);
-  
-  try {
-    const { data, error } = await supabase.functions.invoke('process-book', {
-      body: { bookId, action: 'pause' },
-    });
-    
-    if (error) {
-      console.error("Error pausing book processing:", error);
-      throw error;
-    }
-    
-    return {
-      success: true,
-      message: "Book processing paused successfully",
-      book: data.book
-    };
-  } catch (error) {
-    console.error("Error pausing book processing:", error);
-    return {
-      success: false,
-      message: "Failed to pause book processing",
-      error
-    };
-  }
-};
-
-export const exportCSV = async (bookId: string) => {
-  console.log(`Exporting CSV for book ${bookId}...`);
-  
-  try {
-    const { data, error } = await supabase.functions.invoke('export-questions', {
-      body: { bookId },
-    });
-    
-    if (error) {
-      console.error("Error exporting questions:", error);
-      throw error;
-    }
-    
-    return {
-      success: true,
-      message: "CSV exported successfully",
-      data: {
-        url: data.csvUrl,
-        filename: data.filename,
-        questions: data.questions
-      }
-    };
-  } catch (error) {
-    console.error("Error exporting CSV:", error);
-    return {
-      success: false,
-      message: "Failed to export CSV",
       error
     };
   }
