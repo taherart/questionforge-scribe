@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Terminal, Trash2, RefreshCw } from 'lucide-react';
+import { Terminal, Trash2, RefreshCw, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,7 +23,8 @@ const ProcessLogs = () => {
       // For demo purposes, we're creating mock logs
       // In a real implementation, you would fetch these from a logs table in Supabase
       const mockLogs: ProcessLog[] = [
-        { timestamp: new Date().toISOString(), message: 'Scanning for new PDF files...', level: 'info' },
+        { timestamp: new Date().toISOString(), message: 'Scanning for new PDF files and using AI to extract metadata...', level: 'info' },
+        { timestamp: new Date(Date.now() - 30000).toISOString(), message: 'AI analyzed textbook.pdf: Grade 8 Math, Semester 1', level: 'info' },
         { timestamp: new Date(Date.now() - 60000).toISOString(), message: 'Found new file: textbook.pdf', level: 'info' },
         { timestamp: new Date(Date.now() - 120000).toISOString(), message: 'Waiting for processing to be started manually', level: 'info' },
         { timestamp: new Date(Date.now() - 180000).toISOString(), message: 'To start question extraction, click the play button next to a book', level: 'warn' },
@@ -72,8 +73,9 @@ const ProcessLogs = () => {
             <Terminal className="mr-2 h-5 w-5 text-primary" />
             Process Logs
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="flex items-center">
             Real-time logs of book processing activities
+            <Sparkles className="ml-2 h-4 w-4 text-yellow-400" />
           </CardDescription>
         </div>
         <div className="flex items-center space-x-2">

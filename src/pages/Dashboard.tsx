@@ -60,7 +60,7 @@ const Dashboard = () => {
 
   const handleScanBooks = async (showToast = true) => {
     setIsScanning(true);
-    if (showToast) toast.info("Scanning books...");
+    if (showToast) toast.info("Scanning books and extracting metadata with AI...");
     
     try {
       const result = await scanBooks();
@@ -70,7 +70,7 @@ const Dashboard = () => {
       if (result.success) {
         if (showToast) toast.success(result.message);
         if (result.newFiles && result.newFiles.length > 0 && !showToast) {
-          toast.success(`Found and added ${result.newFiles.length} new PDF files.`);
+          toast.success(`Found and added ${result.newFiles.length} new PDF files with AI-extracted metadata.`);
         }
       } else {
         if (showToast) toast.error(result.message);

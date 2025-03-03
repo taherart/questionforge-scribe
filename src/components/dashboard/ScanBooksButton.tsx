@@ -1,6 +1,6 @@
 
 import { motion } from "framer-motion";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -34,9 +34,12 @@ const ScanBooksButton: React.FC<ScanBooksButtonProps> = ({ isScanning, onScan })
         {isScanning ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
-          <RefreshCw className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
+          <>
+            <RefreshCw className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
+            <Sparkles className="mr-2 h-4 w-4 text-yellow-400" />
+          </>
         )}
-        Scan for New PDFs
+        Scan for New PDFs with AI
       </Button>
     </motion.div>
   );

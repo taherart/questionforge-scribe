@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Book } from "@/types/book";
@@ -44,14 +45,56 @@ export const scanBooks = async () => {
     
     console.log(`Found ${newFiles.length} new PDF files to add to the database`);
     
-    // Add new files to the database with 'idle' status (not auto-processing)
+    // Process new files and extract metadata
     if (newFiles.length > 0) {
-      const booksToInsert = newFiles.map(file => ({
-        name: file.name,
-        file_path: file.name,
-        status: 'idle' // Set to idle, not processing
-      }));
+      const booksToInsert = [];
       
+      // Process files one by one to extract metadata
+      for (const file of newFiles) {
+        try {
+          // Call the extract-book-metadata edge function
+          const { data: metadataResponse, error: metadataError } = await supabase.functions
+            .invoke('extract-book-metadata', {
+              body: { filePath: file.name }
+            });
+          
+          if (metadataError) {
+            console.error("Error extracting metadata:", metadataError);
+            
+            // Add book with default values if metadata extraction fails
+            booksToInsert.push({
+              name: file.name,
+              file_path: file.name,
+              status: 'idle'
+            });
+          } else {
+            // Add book with extracted metadata
+            const { bookInfo } = metadataResponse || {};
+            
+            booksToInsert.push({
+              name: file.name,
+              file_path: file.name,
+              grade: bookInfo?.grade,
+              subject: bookInfo?.subject,
+              semester: bookInfo?.semester,
+              status: 'idle'
+            });
+            
+            console.log(`Extracted metadata for ${file.name}:`, bookInfo);
+          }
+        } catch (error) {
+          console.error(`Error processing file ${file.name}:`, error);
+          
+          // Add book with default values if processing fails
+          booksToInsert.push({
+            name: file.name,
+            file_path: file.name,
+            status: 'idle'
+          });
+        }
+      }
+      
+      // Insert all processed books in one batch
       const { data: insertedBooks, error: insertError } = await supabase
         .from('books')
         .insert(booksToInsert)
@@ -62,12 +105,12 @@ export const scanBooks = async () => {
         throw insertError;
       }
       
-      console.log(`Added ${insertedBooks?.length || 0} new books to database (not auto-processing)`);
+      console.log(`Added ${insertedBooks?.length || 0} new books to database with extracted metadata`);
     }
     
     return {
       success: true,
-      message: `Scan complete. Found and added ${newFiles.length} new PDF files. Click start button to begin processing.`,
+      message: `Scan complete. Found and added ${newFiles.length} new PDF files with metadata. Click start button to begin processing.`,
       newFiles
     };
   } catch (error) {
