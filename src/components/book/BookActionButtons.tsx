@@ -3,16 +3,7 @@ import { Play, Pause, StopCircle, Loader2, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-// Define valid statuses to match database constraint
-const VALID_STATUSES = {
-  IDLE: 'idle',
-  PAUSED: 'paused',
-  PROCESSING: 'processing',
-  COMPLETED: 'completed',
-  ERROR: 'error',
-  CANCELED: 'canceled'
-};
+import { VALID_STATUSES } from "./BookStatusBadge";
 
 interface BookActionButtonsProps {
   bookId: string;

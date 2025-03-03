@@ -2,7 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 
 // Define valid statuses to match database constraint
-const VALID_STATUSES = {
+export const VALID_STATUSES = {
   IDLE: 'idle',
   PAUSED: 'paused',
   PROCESSING: 'processing',
