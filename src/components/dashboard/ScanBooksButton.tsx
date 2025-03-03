@@ -29,17 +29,21 @@ const ScanBooksButton: React.FC<ScanBooksButtonProps> = ({ isScanning, onScan })
       <Button 
         onClick={handleScan} 
         disabled={isScanning}
-        className="group"
+        className="group relative"
+        variant="default"
       >
         {isScanning ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <span>Processing...</span>
+          </>
         ) : (
           <>
             <RefreshCw className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
             <Sparkles className="mr-2 h-4 w-4 text-yellow-400" />
+            <span>Scan for New PDFs with AI</span>
           </>
         )}
-        Scan for New PDFs with AI
       </Button>
     </motion.div>
   );

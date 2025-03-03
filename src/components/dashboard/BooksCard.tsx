@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import BookList from "@/components/BookList";
 import { Book as BookType } from "@/types/book";
+import { toast } from "sonner";
 
 interface BooksCardProps {
   books: BookType[];
@@ -28,6 +29,15 @@ const BooksCard: React.FC<BooksCardProps> = ({
   onRefetch,
   onScan
 }) => {
+  const handleScan = async () => {
+    try {
+      await onScan(true);
+    } catch (error) {
+      console.error("Error scanning for books:", error);
+      toast.error("Failed to scan for books. Please try again.");
+    }
+  };
+
   return (
     <motion.div variants={itemVariants}>
       <Card>
@@ -55,7 +65,7 @@ const BooksCard: React.FC<BooksCardProps> = ({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onScan(true)}
+              onClick={handleScan}
               disabled={isScanning}
             >
               {isScanning ? (
